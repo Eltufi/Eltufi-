@@ -1,0 +1,239 @@
+<html><head><base href="." />
+<meta charset="UTF-8">
+<style>
+  body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+    background: linear-gradient(135deg, #1a1a2e, #16213e);
+    font-family: 'Comic Sans MS', cursive;
+  }
+
+  .container {
+    text-align: center;
+  }
+
+  .character {
+    width: 150px;
+    height: 150px;
+    margin: 20px auto;
+    animation: float 3s ease-in-out infinite;
+  }
+
+  @keyframes float {
+    0% { transform: translateY(0px); }
+    50% { transform: translateY(-20px); }
+    100% { transform: translateY(0px); }
+  }
+
+  .board {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin: 20px auto;
+    width: 300px;
+    background: rgba(255, 255, 255, 0.1);
+    padding: 15px;
+    border-radius: 15px;
+  }
+
+  .cell {
+    width: 90px;
+    height: 90px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 40px;
+    color: white;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+
+  .cell:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: scale(1.05);
+  }
+
+  .message {
+    color: white;
+    font-size: 24px;
+    margin: 20px;
+    min-height: 30px;
+  }
+
+  .restart {
+    background: #4CAF50;
+    border: none;
+    padding: 10px 20px;
+    color: white;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: all 0.3s ease;
+  }
+
+  .restart:hover {
+    background: #45a049;
+    transform: scale(1.05);
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <svg class="character" viewBox="0 0 100 100">
+    <circle cx="50" cy="50" r="45" fill="#FFD700"/>
+    <circle cx="35" cy="40" r="5" fill="#000"/>
+    <circle cx="65" cy="40" r="5" fill="#000"/>
+    <path d="M 30 65 Q 50 80 70 65" stroke="#000" stroke-width="3" fill="none"/>
+  </svg>
+  
+  <div class="board" id="board">
+    <div class="cell" data-index="0"></div>
+    <div class="cell" data-index="1"></div>
+    <div class="cell" data-index="2"></div>
+    <div class="cell" data-index="3"></div>
+    <div class="cell" data-index="4"></div>
+    <div class="cell" data-index="5"></div>
+    <div class="cell" data-index="6"></div>
+    <div class="cell" data-index="7"></div>
+    <div class="cell" data-index="8"></div>
+  </div>
+
+  <div class="message" id="message">¡Tu turno! Eres X</div>
+  <button class="restart" id="restart">Reiniciar Juego</button>
+</div>
+
+<script>
+const board = document.getElementById('board');
+const cells = document.querySelectorAll('.cell');
+const message = document.getElementById('message');
+const restartButton = document.getElementById('restart');
+let currentBoard = Array(9).fill('');
+let gameActive = true;
+
+const winningCombinations = [
+  [0, 1, 2], [3, 4, 5], [6, 7, 8], // Rows
+  [0, 3, 6], [1, 4, 7], [2, 5, 8], // Columns
+  [0, 4, 8], [2, 4, 6] // Diagonals
+];
+
+function handleCellClick(e) {
+  const cell = e.target;
+  const index = cell.dataset.index;
+
+  if (currentBoard[index] !== '' || !gameActive) return;
+
+  // Player move
+  currentBoard[index] = 'X';
+  cell.textContent = 'X';
+  
+  if (checkWin('X')) {
+    message.textContent = '¡Ganaste! 🎉';
+    gameActive = false;
+    return;
+  }
+
+  if (checkDraw()) {
+    message.textContent = '¡Empate! 🤝';
+    gameActive = false;
+    return;
+  }
+
+  // AI move
+  message.textContent = 'AI está pensando... 🤔';
+  setTimeout(() => {
+    makeAiMove();
+  }, 500);
+}
+
+function makeAiMove() {
+  if (!gameActive) return;
+
+  // Try to win
+  const winningMove = findBestMove('O');
+  if (winningMove !== -1) {
+    makeMove(winningMove, 'O');
+    return;
+  }
+
+  // Block player
+  const blockingMove = findBestMove('X');
+  if (blockingMove !== -1) {
+    makeMove(blockingMove, 'O');
+    return;
+  }
+
+  // Take center if available
+  if (currentBoard[4] === '') {
+    makeMove(4, 'O');
+    return;
+  }
+
+  // Take random available cell
+  const availableCells = currentBoard
+    .map((cell, index) => cell === '' ? index : null)
+    .filter(cell => cell !== null);
+  
+  if (availableCells.length > 0) {
+    const randomIndex = availableCells[Math.floor(Math.random() * availableCells.length)];
+    makeMove(randomIndex, 'O');
+  }
+}
+
+function findBestMove(player) {
+  for (let combination of winningCombinations) {
+    const values = combination.map(index => currentBoard[index]);
+    const playerCount = values.filter(value => value === player).length;
+    const emptyCount = values.filter(value => value === '').length;
+
+    if (playerCount === 2 && emptyCount === 1) {
+      return combination[values.indexOf('')];
+    }
+  }
+  return -1;
+}
+
+function makeMove(index, symbol) {
+  currentBoard[index] = symbol;
+  cells[index].textContent = symbol;
+
+  if (checkWin(symbol)) {
+    message.textContent = symbol === 'O' ? '¡La AI ganó! 🤖' : '¡Ganaste! 🎉';
+    gameActive = false;
+    return;
+  }
+
+  if (checkDraw()) {
+    message.textContent = '¡Empate! 🤝';
+    gameActive = false;
+    return;
+  }
+
+  message.textContent = '¡Tu turno! Eres X';
+}
+
+function checkWin(player) {
+  return winningCombinations.some(combination => {
+    return combination.every(index => currentBoard[index] === player);
+  });
+}
+
+function checkDraw() {
+  return !currentBoard.includes('');
+}
+
+function restartGame() {
+  currentBoard = Array(9).fill('');
+  gameActive = true;
+  message.textContent = '¡Tu turno! Eres X';
+  cells.forEach(cell => cell.textContent = '');
+}
+
+cells.forEach(cell => cell.addEventListener('click', handleCellClick));
+restartButton.addEventListener('click', restartGame);
+</script>
+</body></html>
